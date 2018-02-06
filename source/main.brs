@@ -66,8 +66,10 @@ Sub Setup() As Object
     this.player.SetPositionNotificationPeriod(1)
     this.player.SetDestinationRect({ x:0, y:0, w:0, h:0 })
     this.player.AddHeader("User-Agent", "Mozilla/5.0 (iPad; U; CPU OS 3_2 like Mac OS X; en-us) AppleWebKit/531.21.10 (KHTML, like Gecko) Version/4.0.4 Mobile/7B334b Safari/531.21.10")
+
     this.player.SetContentList([{
-        Stream: { url: "http://prepublish.f.qaotic.net/a01/ngrp:americatvlive-100056_all/Playlist.m3u8" }
+
+        Stream: { url: GetURL() }
         StreamFormat: "hls"
         SwitchingStrategy: "full-adaptation"
     }])
@@ -75,6 +77,36 @@ Sub Setup() As Object
 
     return this
 End Sub
+
+Function GetURL() as string
+    request = CreateObject("roUrlTransfer")
+    port = CreateObject("roMessagePort")
+    request.SetMessagePort(port)
+    requestUrl = "https://pubads.g.doubleclick.net/ssai/event/OY2i_lL4SMyXE5Zaj4ULEg/streams"
+    print requestUrl
+    request.SetUrl("https://pubads.g.doubleclick.net/ssai/event/OY2i_lL4SMyXE5Zaj4ULEg/streams")
+    request.EnablePeerVerification(False)
+    request.EnableHostVerification(False)
+    result = request.AsyncPostFromString("url=https://www.americatv.com.ar/")
+    print result
+    if (result)
+        while (true)
+	    print "waiting for msg"
+	    msg = wait(0, port)
+	    print msg.GetResponseCode()
+	    if (type(msg) = "roUrlEvent")
+               	code = msg.GetResponseCode()
+    		json = ParseJSON(msg.GetString())
+		print json
+		print json.stream_manifest
+		return json.stream_manifest
+	    endif
+	end while
+    end if
+
+    'no sound url
+    return "http://prepublish.f.qaotic.net/epa/ngrp:americatvlive-100056_all/Playlist.m3u8"
+End Function
 
 Sub EventLoop()
     while true
@@ -108,7 +140,7 @@ Sub EventLoop()
                 else if index = 13  '<PAUSE/PLAY>
                     if m.paused m.player.Resume() else m.player.Pause()
 		else if index = 0 '<BACK>
-		    return	    
+		    return
                 end if
 
             else if msg.isPaused()
